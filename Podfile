@@ -8,4 +8,5 @@ target 'iDev Business Viewer' do
   # Pods for iDev Business Viewer
   pod 'SwiftyJSON'
   pod 'Alamofire'
+  pod 'AFNetworking'
 end

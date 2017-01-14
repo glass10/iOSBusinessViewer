@@ -7,9 +7,27 @@
 //
 
 import UIKit
+import Alamofire
+import SwiftyJSON
+import AFNetworking
 
 class BusinessViewController: UITableViewController {
-
+    
+    var businesses: [Business?] = []
+    
+    var token:String?
+    
+    let clientID = "-lahDjDuzKdQUiPjkdk2kA";
+    
+    let secret = "3XkAAwTAmM6ocL6btQXotSc2VQgkQajjKFHBZPb35s0tpvuYR142WYaS5KB7J8NU";
+    
+    let baseURL = "https://api.yelp.com/oauth2/token"
+    
+    let searchURL = "https://api.yelp.com/v3/businesses/search"
+    
+    let location = "West Lafayette, IN";
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -18,6 +36,7 @@ class BusinessViewController: UITableViewController {
 
         // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
         // self.navigationItem.rightBarButtonItem = self.editButtonItem()
+        getToken()
     }
 
     override func didReceiveMemoryWarning() {
@@ -26,26 +45,83 @@ class BusinessViewController: UITableViewController {
     }
 
     // MARK: - Table view data source
+    func getToken(){
+        Alamofire.request(baseURL, method: .post, parameters: ["grant_type" : "client_credentials", "client_id" : clientID, "client_secret" : secret], encoding: URLEncoding.default, headers: nil).responseJSON { response in
+            
+            if response.result.isSuccess {
+                guard let info = response.result.value else {
+                    print("Error")
+                    return;
+                }
+                print(info);
+                let json = JSON(info)
+                print(json);
+                
+                self.token = json["access_token"].stringValue
+                self.loadBusiness();
+            }
+        }
+    }
+    
+    func loadBusiness(){
+        Alamofire.request(searchURL, method: .get, parameters: ["location" : location], encoding: URLEncoding.default , headers: ["Authorization" : "Bearer \(token!)"]).validate().responseJSON {
+            response in
+            if response.result.isSuccess {
+                guard let info = response.result.value else {
+                    print("Error")
+                    return;
+                }
+                print(info);
+                let json = JSON(info)
+                print(json);
+                
+                let businesses = json["businesses"].arrayValue
+                
+                for businessJSON in businesses {
+                    let businessInfo = Business(json: businessJSON)
+                    self.businesses.append(businessInfo)
+                }
+                self.tableView.reloadData()
+            }
+        }
+    }
+    
+
+
 
     override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Incomplete implementation, return the number of sections
-        return 0
+        return 1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return 0
+        print(businesses.count)
+        return businesses.count
     }
 
-    /*
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: "BusinessCell", for: indexPath) as! BusinessCell
 
         // Configure the cell...
-
+        let row = indexPath.row
+        
+        guard let businessInfo = businesses[row] else {
+            return cell
+        }
+        
+        cell.nameLabel.text = businessInfo.name
+        cell.ratingLabel.text = "Rating: \(businessInfo.rating)"
+        cell.priceLabel.text = businessInfo.price
+        cell.distanceLabel.text = "\(businessInfo.distance)"
+        cell.addressLabel.text = businessInfo.location
+        let imageURL = URL(string: businessInfo.imageURL)
+        cell.posterView.setImageWith(imageURL!)
+        
         return cell
     }
-    */
+    
 
     /*
     // Override to support conditional editing of the table view.
@@ -82,14 +158,23 @@ class BusinessViewController: UITableViewController {
     }
     */
 
-    /*
+    
     // MARK: - Navigation
 
     // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         // Get the new view controller using segue.destinationViewController.
         // Pass the selected object to the new view controller.
+        
+        let cell = sender as! BusinessCell
+        
+        let destination = segue.destination as! ViewController
+        
+        let row = tableView.indexPath(for: cell)?.row
+        
+        let business = businesses[row!]
+        
+        destination.business = business
     }
-    */
 
 }
